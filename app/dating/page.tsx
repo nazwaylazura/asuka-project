@@ -1,8 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-// Menggunakan package @google/genai yang aman
-import { GoogleGenAI } from '@google/genai';
 
 interface BotCharacter {
   id: string;
@@ -55,7 +53,7 @@ export default function DatingPage() {
     setHasChatHistory(false);
   }, []);
 
-  // 2. FUNGSI MEMULAI KENCAN & AMBIL RIWAYAT LAMA (ANTI-HAPUS OTOMATIS)
+  // 2. FUNGSI MEMULAI KENCAN & AMBIL RIWAYAT LAMA (VIA API INTERNAL)
   const handleStartDating = async (locName: string) => {
     if (!selectedBot) return;
     setSelectedLocation(locName);
@@ -63,42 +61,37 @@ export default function DatingPage() {
     const storageKey = `dating_log_${selectedBot.id}_${locName.split(' ')[0].toLowerCase()}`;
     const savedDatingLog = localStorage.getItem(storageKey);
 
-    // JIKA ADA RIWAYAT LAMA: Langsung tampilkan ke layar tanpa timpa/reset data
     if (savedDatingLog) {
       setChatLog(JSON.parse(savedDatingLog));
       return;
     }
 
-    // JIKA TIDAK ADA RIWAYAT LAMA: Jalankan Gemini untuk merakit kalimat pembuka baru
     setIsLoading(true);
     const simplifiedLoc = locName.split(' ')[0].toLowerCase();
     setChatLog([{ sender: 'bot', text: `*Sedang mempersiapkan suasana kencan romantis bersama ${selectedBot.name} di ${simplifiedLoc}...*` }]);
 
     try {
-      // Panggil variabel lingkungan server yang sensitif ditangkap GCP
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key Gemini tidak ditemukan.");
+      const contentsHistory = [
+        { role: 'user', parts: [{ text: `Buatkan satu paragraf pendek teks aksi roleplay pembuka yang imersif di mana kamu (${selectedBot.name}) sudah menungguku untuk berkencan di tempat bernama: ${simplifiedLoc}. Mulailah menyapaku.` }] }
+      ];
+      
+      const systemInstruction = `Kamu adalah karakter bernama ${selectedBot.name}. Sifat dasarmu adalah: ${selectedBot.personality}.
+      Saat ini kamu sedang melakukan kencan berdua saja dengan user di lokasi: ${simplifiedLoc}.
+      Wajib gunakan tanda bintang (*) untuk menuliskan aksi tindakan/situasi lingkungan sekitar, and tanda kutip ganda ("...") untuk dialog ucapan langsung kamu. Jangan bertele-tele, tulis respon pembuka yang padat dan langsung selesai!`;
 
-      // Bersih tanpa properti asing (Aman Sisi Server Live)
-      const ai = new GoogleGenAI({ apiKey: apiKey });
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          { role: 'user', parts: [{ text: `Buatkan satu paragraf pendek teks aksi roleplay pembuka yang imersif di mana kamu (${selectedBot.name}) sudah menungguku untuk berkencan di tempat bernama: ${simplifiedLoc}. Mulailah menyapaku.` }] }
-        ],
-        config: {
-          systemInstruction: `Kamu adalah karakter bernama ${selectedBot.name}. Sifat dasarmu adalah: ${selectedBot.personality}.
-          Saat ini kamu sedang melakukan kencan berdua saja dengan user di lokasi: ${simplifiedLoc}.
-          Wajib gunakan tanda bintang (*) untuk menuliskan aksi tindakan/situasi lingkungan sekitar, and tanda kutip ganda ("...") untuk dialog ucapan langsung kamu. Jangan bertele-tele, tulis respon pembuka yang padat dan langsung selesai!`,
-          temperature: 0.8,
-          maxOutputTokens: 500,
-        }
+      // Panggil API buatan kita sendiri
+      const response = await fetch('/api/lover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentsHistory, systemInstruction })
       });
 
-      const responseText = response?.text || `*${selectedBot.name} melambaikan tangannya kepadamu saat kamu tiba di ${simplifiedLoc}.* "Hey, akhirnya kamu sampai juga!"`;
-      const initialLog: ChatMessage[] = [{ sender: 'bot', text: responseText }];
+      if (!response.ok) throw new Error("Gagal mengambil respon dari server");
+
+      const data = await response.json();
+      const responseText = data.reply;
       
+      const initialLog: ChatMessage[] = [{ sender: 'bot', text: responseText }];
       setChatLog(initialLog);
       localStorage.setItem(storageKey, JSON.stringify(initialLog));
 
@@ -112,7 +105,7 @@ export default function DatingPage() {
     }
   };
 
-  // 3. FUNGSI MERESPON CHAT ROLEPLAY USER DENGAN PERINTAH KETAT ANTI-KEPOTONG
+  // 3. FUNGSI MERESPON CHAT ROLEPLAY USER (VIA API INTERNAL)
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userInput.trim() || !selectedBot || !selectedLocation || isLoading) return;
@@ -127,13 +120,6 @@ export default function DatingPage() {
     localStorage.setItem(storageKey, JSON.stringify(updatedLog));
 
     try {
-      // Panggil variabel lingkungan server yang sensitif ditangkap GCP
-      const apiKey = process.env.GEMINI_KEY;
-      if (!apiKey) throw new Error("API Key Gemini (GEMINI_KEY) tidak ditemukan.");
-
-      // Bersih tanpa properti asing (Aman Sisi Server Live)
-      const ai = new GoogleGenAI({ apiKey: apiKey });
-      
       const contentsHistory = updatedLog
         .filter(msg => msg.text && msg.text.trim() !== "")
         .map(msg => ({
@@ -141,29 +127,32 @@ export default function DatingPage() {
           parts: [{ text: msg.text }]
         }));
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: contentsHistory,
-        config: {
-          systemInstruction: `Kamu adalah pasangan kencan roleplay bernama ${selectedBot.name} dengan kepribadian: ${selectedBot.personality}.
-          Kamu dan user saat ini sedang menghabiskan waktu kencan intim bersama di lokasi: ${selectedLocation}.
-          
-          ATURAN KHUSUS ROLEPLAY DATING (WAJIB DIPATUHI SECARA MUTLAK):
-          1. Ini adalah interaksi tatap muka langsung di dunia nyata. Gunakan tanda bintang (*) untuk menulis narasi tindakan fisik, kontak mata, ekspresi wajah, atau bahasa tubuhmu secara detail.
-          2. Gunakan tanda kutip ganda ("...") untuk dialog ucapan langsung dari mulut karaktermu.
-          3. JANGAN MENULIS NARASI YANG TERLALU PANJANG DAN BERTELE-TELE. Batasi total responmu maksimal hanya 2 paragraf pendek saja!
-          4. PENTING SEKALI: Pastikan seluruh jalan cerita, kalimat, dan dialog ucapanmu selesai sepenuhnya sampai tuntas sebelum batas teks berakhir.
-          5. JANGAN PERNAH memotong kata di akhir kalimat atau membiarkan kalimat menggantung tanpa kejelasan. Akhiri balasanmu dengan tanda titik (.) atau tanda kutip (") penutup yang rapi!`,
-          temperature: 0.8,
-          maxOutputTokens: 1000, 
-        }
+      const systemInstruction = `Kamu adalah pasangan kencan roleplay bernama ${selectedBot.name} dengan kepribadian: ${selectedBot.personality}.
+      Kamu dan user saat ini sedang menghabiskan waktu kencan intim bersama di lokasi: ${selectedLocation}.
+      
+      ATURAN KHUSUS ROLEPLAY DATING (WAJIB DIPATUHI SECARA MUTLAK):
+      1. Ini adalah interaksi tatap muka langsung di dunia nyata. Gunakan tanda bintang (*) untuk menulis narasi tindakan fisik, kontak mata, ekspresi wajah, atau bahasa tubuhmu secara detail.
+      2. Gunakan tanda kutip ganda ("...") untuk dialog ucapan langsung dari mulut karaktermu.
+      3. JANGAN MENULIS NARASI YANG TERLALU PANJANG DAN BERTELE-TELE. Batasi total responmu maksimal hanya 2 paragraf pendek saja!
+      4. PENTING SEKALI: Pastikan seluruh jalan cerita, kalimat, dan dialog ucapanmu selesai sepenuhnya sampai tuntas sebelum batas teks berakhir.
+      5. JANGAN PERNAH memotong kata di akhir kalimat atau membiarkan kalimat menggantung tanpa kejelasan. Akhiri balasanmu dengan tanda titik (.) atau tanda kutip (") penutup yang rapi!`;
+
+      // Panggil API buatan kita sendiri
+      const response = await fetch('/api/dating', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentsHistory, systemInstruction })
       });
 
-      const responseText = response?.text || `*${selectedBot.name} mengangguk pelan sembari tersenyum menatapmu.* "Iya, aku mendengarmu."`;
-      const finalLog = [...updatedLog, { sender: 'bot', text: responseText } as ChatMessage];
+      if (!response.ok) throw new Error("Gagal mengambil respon dari server");
+
+      const data = await response.json();
+      const responseText = data.reply;
       
+      const finalLog = [...updatedLog, { sender: 'bot', text: responseText } as ChatMessage];
       setChatLog(finalLog);
       localStorage.setItem(storageKey, JSON.stringify(finalLog));
+
     } catch (error) {
       console.error("Gemini Dating Chat Error:", error);
       alert("Koneksi kencan terganggu, coba ketik ulang balasanmu ya! 🌸");
