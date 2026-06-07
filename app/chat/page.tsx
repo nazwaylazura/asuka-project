@@ -88,7 +88,7 @@ export default function ChatPage() {
       const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
       
       if (!apiKey) {
-        throw new Error("API Key Gemini (GEMINI_KEY) tidak ditemukan di env server.");
+        throw new Error("API Key Gemini tidak ditemukan di env server.");
       }
 
       // Bersih tanpa properti asing (TS Garis Kuning/Merah Hilang!)

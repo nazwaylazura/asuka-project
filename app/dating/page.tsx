@@ -77,7 +77,7 @@ export default function DatingPage() {
     try {
       // Panggil variabel lingkungan server yang sensitif ditangkap GCP
       const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key Gemini (GEMINI_KEY) tidak ditemukan.");
+      if (!apiKey) throw new Error("API Key Gemini tidak ditemukan.");
 
       // Bersih tanpa properti asing (Aman Sisi Server Live)
       const ai = new GoogleGenAI({ apiKey: apiKey });
