@@ -23,9 +23,17 @@ export default function LoginPage() {
     }
   }, [status, router]);
 
-  // Handler Login Otomatis Google OAuth
-  const handleGoogleLogin = () => {
-    signIn("google", { callbackUrl: "/home" });
+  // Handler Login Otomatis Google OAuth (SUDAH DIPERBAIKI AGAR TIDAK STUCK/REFRESH)
+  const handleGoogleLogin = async () => {
+    setErrorMsg("");
+    try {
+      await signIn("google", { 
+        callbackUrl: "/home",
+        redirect: true 
+      });
+    } catch (err) {
+      setErrorMsg("Gagal menghubungkan ke layanan Google OAuth. ❌");
+    }
   };
 
   // Handler Kirim Form Manual (Login / Daftar Baru)
@@ -122,6 +130,7 @@ export default function LoginPage() {
         {!isRegisterMode && (
           <div className="space-y-2">
             <button
+              type="button"
               onClick={handleGoogleLogin}
               disabled={status === "loading" || loading}
               className="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold text-xs py-4 rounded-2xl shadow-sm transition active:scale-[0.99] flex items-center justify-center gap-2 disabled:bg-pink-300 disabled:cursor-not-allowed"
