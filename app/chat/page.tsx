@@ -17,9 +17,6 @@ interface Message {
   text: string;
 }
 
-// Taruh API Key Gemini dari Google AI Studio kamu di sini
-const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
 export default function ChatPage() {
   const router = useRouter();
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -80,15 +77,24 @@ export default function ChatPage() {
     localStorage.setItem(`chat_log_${activeBot.id}`, JSON.stringify(updatedMessages));
 
     // ─── FITUR JUJUR STREAK TANGGAL ───
-    // Catat tanggal hari ini sebagai tanggal pertama dichat jika belum ada record sebelumnya
     const streakKey = `streak_start_${activeBot.id}`;
     if (!localStorage.getItem(streakKey)) {
-      const todayString = new Date().toISOString().split('T')[0]; // Format murni: YYYY-MM-DD
+      const todayString = new Date().toISOString().split('T')[0];
       localStorage.setItem(streakKey, todayString);
     }
 
     try {
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      // Mengambil API Key secara dinamis saat tombol diklik
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        throw new Error("API Key Gemini tidak ditemukan di environment client.");
+      }
+
+      // TAMBAHAN KRUSIAL: dangerouslyAllowBrowser wajib true agar bisa tembus di server Cloud Run
+      const ai = new GoogleGenAI({ 
+        apiKey: apiKey,
+      });
 
       const contentsHistory = updatedMessages.map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',

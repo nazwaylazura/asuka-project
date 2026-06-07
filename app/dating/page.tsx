@@ -17,9 +17,6 @@ interface ChatMessage {
   text: string;
 }
 
-// API Key cadangan baru yang fresh dan 100% gratisan milikmu
-const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
 export default function DatingPage() {
   const router = useRouter();
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -63,7 +60,6 @@ export default function DatingPage() {
     if (!selectedBot) return;
     setSelectedLocation(locName);
 
-    // Bikin id unik gabungan antara Bot ID dan Lokasi (Contoh: custom_12345_library)
     const storageKey = `dating_log_${selectedBot.id}_${locName.split(' ')[0].toLowerCase()}`;
     const savedDatingLog = localStorage.getItem(storageKey);
 
@@ -79,7 +75,14 @@ export default function DatingPage() {
     setChatLog([{ sender: 'bot', text: `*Sedang mempersiapkan suasana kencan romantis bersama ${selectedBot.name} di ${simplifiedLoc}...*` }]);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) throw new Error("API Key Gemini tidak ditemukan.");
+
+      // AMAN LIVE: Menggunakan pengaman browser biar gcloud ga nolak
+      const ai = new GoogleGenAI({ 
+        apiKey: apiKey, 
+      });
+
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: [
@@ -98,7 +101,7 @@ export default function DatingPage() {
       const initialLog: ChatMessage[] = [{ sender: 'bot', text: responseText }];
       
       setChatLog(initialLog);
-      localStorage.setItem(storageKey, JSON.stringify(initialLog)); // Simpan log pembuka ke memori browser
+      localStorage.setItem(storageKey, JSON.stringify(initialLog));
 
     } catch (error) {
       console.error("Gemini Dating Error:", error);
@@ -122,12 +125,17 @@ export default function DatingPage() {
     setIsLoading(true);
 
     const storageKey = `dating_log_${selectedBot.id}_${selectedLocation.split(' ')[0].toLowerCase()}`;
-    localStorage.setItem(storageKey, JSON.stringify(updatedLog)); // Kunci chat user di browser
+    localStorage.setItem(storageKey, JSON.stringify(updatedLog));
 
     try {
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) throw new Error("API Key Gemini tidak ditemukan.");
+
+      // AMAN LIVE: Menggunakan pengaman browser biar gcloud ga nolak
+      const ai = new GoogleGenAI({ 
+        apiKey: apiKey,
+      });
       
-      // Saring riwayat pesan agar tidak ada teks kosong/gantung yang terkirim
       const contentsHistory = updatedLog
         .filter(msg => msg.text && msg.text.trim() !== "")
         .map(msg => ({
@@ -139,7 +147,6 @@ export default function DatingPage() {
         model: 'gemini-2.5-flash',
         contents: contentsHistory,
         config: {
-          // PROMPT YANG SUDAH DIPERKETAT: Memaksa AI menulis secara padat agar kalimat tidak menggantung di akhir
           systemInstruction: `Kamu adalah pasangan kencan roleplay bernama ${selectedBot.name} dengan kepribadian: ${selectedBot.personality}.
           Kamu dan user saat ini sedang menghabiskan waktu kencan intim bersama di lokasi: ${selectedLocation}.
           
@@ -158,7 +165,7 @@ export default function DatingPage() {
       const finalLog = [...updatedLog, { sender: 'bot', text: responseText } as ChatMessage];
       
       setChatLog(finalLog);
-      localStorage.setItem(storageKey, JSON.stringify(finalLog)); // Kunci balasan bot di browser
+      localStorage.setItem(storageKey, JSON.stringify(finalLog));
     } catch (error) {
       console.error("Gemini Dating Chat Error:", error);
       alert("Koneksi kencan terganggu, coba ketik ulang balasanmu ya! 🌸");
@@ -173,9 +180,7 @@ export default function DatingPage() {
     
     if (confirm(`Apakah kamu yakin ingin menghapus riwayat kencan romantis bersama ${selectedBot.name} di ${selectedLocation} dan mengulangnya dari awal?`)) {
       const storageKey = `dating_log_${selectedBot.id}_${selectedLocation.split(' ')[0].toLowerCase()}`;
-      localStorage.removeItem(storageKey); // Buang memory di browser
-      
-      // Panggil kembali fungsi pembuka biar Gemini merespon skenario awal yang baru
+      localStorage.removeItem(storageKey);
       handleStartDating(selectedLocation);
     }
   };
