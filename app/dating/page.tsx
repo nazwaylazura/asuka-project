@@ -138,7 +138,7 @@ export default function DatingPage() {
       5. JANGAN PERNAH memotong kata di akhir kalimat atau membiarkan kalimat menggantung tanpa kejelasan. Akhiri balasanmu dengan tanda titik (.) atau tanda kutip (") penutup yang rapi!`;
 
       // Panggil API buatan kita sendiri
-      const response = await fetch('/api/dating', {
+      const response = await fetch('/api/lover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contentsHistory, systemInstruction })
