@@ -85,7 +85,7 @@ export default function ChatPage() {
 
     try {
       // Panggil variabel lingkungan server yang sensitif ditangkap GCP
-      const apiKey = process.env.GEMINI_KEY;
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
       
       if (!apiKey) {
         throw new Error("API Key Gemini (GEMINI_KEY) tidak ditemukan di env server.");
