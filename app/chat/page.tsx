@@ -1,8 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-// Menggunakan package @google/genai yang benar
-import { GoogleGenAI } from '@google/genai';
 
 interface BotCharacter {
   id: string;
@@ -63,7 +61,7 @@ export default function ChatPage() {
     if (savedGifts) setMyGifts(JSON.parse(savedGifts));
   }, []);
 
-  // FUNGSI UTAMA INTEGRASI GOOGLE GEMINI API (MODE CHAT MANUSIA NORMAL + TRACKER TANGGAL REAL)
+  // FUNGSI UTAMA INTEGRASI GOOGLE GEMINI API (VIA API ROUTE INTERNAL)
   const handleSendText = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim() || !activeBot || isLoading) return;
@@ -84,47 +82,42 @@ export default function ChatPage() {
     }
 
     try {
-      // Panggil variabel lingkungan server yang sensitif ditangkap GCP
-      const apiKey = process.env.GEMINI_API_KEY;
-      
-      if (!apiKey) {
-        throw new Error("API Key Gemini tidak ditemukan di env server.");
-      }
-
-      // Bersih tanpa properti asing (TS Garis Kuning/Merah Hilang!)
-      const ai = new GoogleGenAI({ apiKey: apiKey });
-
+      // Siapkan pesan buat dikirim ke kurir (route.ts)
       const contentsHistory = updatedMessages.map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
         parts: [{ text: msg.text }]
       }));
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: contentsHistory,
-        config: {
-          systemInstruction: `Kamu adalah karakter bernama ${activeBot.name} yang sedang bertukar pesan chat santai dengan user melalui aplikasi pesan instan (seperti WhatsApp atau LINE).
-          Kepribadian dasar kamu dibentuk oleh prompt ini: ${activeBot.personality}.
-          
-          ATURAN OBROLAN:
-          1. Berbicaralah layaknya manusia normal yang sedang chatingan. Gunakan gaya bahasa yang kasual, santai, akrab, dan natural.
-          2. JANGAN PERNAH gunakan tanda bintang (*) atau menuliskan narasi tindakan/situasi/emosi. Cukup ketik teks ucapan/chat murni saja.
-          3. JANGAN PERNAH gunakan tanda kutip untuk membungkus obrolanmu.
-          4. Balas dengan panjang pesan yang wajar (tidak terlalu pendek, tidak terlalu panjang) seperti orang chatingan pada umumnya.
-          5. Tetap pertahankan sifat dasar dari ${activeBot.name}, tetapi sampaikan seluruhnya lewat ketikan teks obrolan murni.`,
-          temperature: 0.7,
-          maxOutputTokens: 1000,
-        }
+      const systemInstruction = `Kamu adalah karakter bernama ${activeBot.name} yang sedang bertukar pesan chat santai dengan user melalui aplikasi pesan instan (seperti WhatsApp atau LINE).
+      Kepribadian dasar kamu dibentuk oleh prompt ini: ${activeBot.personality}.
+      
+      ATURAN OBROLAN:
+      1. Berbicaralah layaknya manusia normal yang sedang chatingan. Gunakan gaya bahasa yang kasual, santai, akrab, dan natural.
+      2. JANGAN PERNAH gunakan tanda bintang (*) atau menuliskan narasi tindakan/situasi/emosi. Cukup ketik teks ucapan/chat murni saja.
+      3. JANGAN PERNAH gunakan tanda kutip untuk membungkus obrolanmu.
+      4. Balas dengan panjang pesan yang wajar (tidak terlalu pendek, tidak terlalu panjang) seperti orang chatingan pada umumnya.
+      5. Tetap pertahankan sifat dasar dari ${activeBot.name}, tetapi sampaikan seluruhnya lewat ketikan teks obrolan murni.`;
+
+      // Panggil API buatan kita sendiri
+      const response = await fetch('/api/bot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentsHistory, systemInstruction })
       });
 
-      const responseText = response?.text || "Bot tidak merespon...";
+      if (!response.ok) {
+        throw new Error("Gagal mengambil balasan dari server");
+      }
+
+      const data = await response.json();
+      const responseText = data.reply;
 
       const finalMessages = [...updatedMessages, { sender: 'bot', text: responseText } as Message];
       setMessages(finalMessages);
       localStorage.setItem(`chat_log_${activeBot.id}`, JSON.stringify(finalMessages));
 
     } catch (error) {
-      console.error("Gemini API Error:", error);
+      console.error("Fetch API Error:", error);
       alert("Oops! Terjadi masalah saat menghubungi pikiran AI. Coba kirim ulang pesanmu ya!");
     } finally {
       setIsLoading(false);
