@@ -75,13 +75,12 @@ export default function DatingPage() {
     setChatLog([{ sender: 'bot', text: `*Sedang mempersiapkan suasana kencan romantis bersama ${selectedBot.name} di ${simplifiedLoc}...*` }]);
 
     try {
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key Gemini tidak ditemukan.");
+      // Panggil variabel lingkungan server yang sensitif ditangkap GCP
+      const apiKey = process.env.GEMINI_KEY;
+      if (!apiKey) throw new Error("API Key Gemini (GEMINI_KEY) tidak ditemukan.");
 
-      // AMAN LIVE: Menggunakan pengaman browser biar gcloud ga nolak
-      const ai = new GoogleGenAI({ 
-        apiKey: apiKey, 
-      });
+      // Bersih tanpa properti asing (Aman Sisi Server Live)
+      const ai = new GoogleGenAI({ apiKey: apiKey });
 
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -91,7 +90,7 @@ export default function DatingPage() {
         config: {
           systemInstruction: `Kamu adalah karakter bernama ${selectedBot.name}. Sifat dasarmu adalah: ${selectedBot.personality}.
           Saat ini kamu sedang melakukan kencan berdua saja dengan user di lokasi: ${simplifiedLoc}.
-          Wajib gunakan tanda bintang (*) untuk menuliskan aksi tindakan/situasi lingkungan sekitar, dan tanda kutip ganda ("...") untuk dialog ucapan langsung kamu. Jangan bertele-tele, tulis respon pembuka yang padat dan langsung selesai!`,
+          Wajib gunakan tanda bintang (*) untuk menuliskan aksi tindakan/situasi lingkungan sekitar, and tanda kutip ganda ("...") untuk dialog ucapan langsung kamu. Jangan bertele-tele, tulis respon pembuka yang padat dan langsung selesai!`,
           temperature: 0.8,
           maxOutputTokens: 500,
         }
@@ -128,13 +127,12 @@ export default function DatingPage() {
     localStorage.setItem(storageKey, JSON.stringify(updatedLog));
 
     try {
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key Gemini tidak ditemukan.");
+      // Panggil variabel lingkungan server yang sensitif ditangkap GCP
+      const apiKey = process.env.GEMINI_KEY;
+      if (!apiKey) throw new Error("API Key Gemini (GEMINI_KEY) tidak ditemukan.");
 
-      // AMAN LIVE: Menggunakan pengaman browser biar gcloud ga nolak
-      const ai = new GoogleGenAI({ 
-        apiKey: apiKey,
-      });
+      // Bersih tanpa properti asing (Aman Sisi Server Live)
+      const ai = new GoogleGenAI({ apiKey: apiKey });
       
       const contentsHistory = updatedLog
         .filter(msg => msg.text && msg.text.trim() !== "")

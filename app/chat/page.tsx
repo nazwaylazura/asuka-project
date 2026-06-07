@@ -84,17 +84,15 @@ export default function ChatPage() {
     }
 
     try {
-      // Mengambil API Key secara dinamis saat tombol diklik
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      // Panggil variabel lingkungan server yang sensitif ditangkap GCP
+      const apiKey = process.env.GEMINI_KEY;
       
       if (!apiKey) {
-        throw new Error("API Key Gemini tidak ditemukan di environment client.");
+        throw new Error("API Key Gemini (GEMINI_KEY) tidak ditemukan di env server.");
       }
 
-      // TAMBAHAN KRUSIAL: dangerouslyAllowBrowser wajib true agar bisa tembus di server Cloud Run
-      const ai = new GoogleGenAI({ 
-        apiKey: apiKey,
-      });
+      // Bersih tanpa properti asing (TS Garis Kuning/Merah Hilang!)
+      const ai = new GoogleGenAI({ apiKey: apiKey });
 
       const contentsHistory = updatedMessages.map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
