@@ -60,7 +60,7 @@ const handler = NextAuth({
   },
   // Tambahan opsi rahasia agar NextAuth tahu halaman login kustom kalian
   pages: {
-    signIn: "/login", 
+    signIn: "/", 
   },
   secret: process.env.NEXTAUTH_SECRET,
 })
